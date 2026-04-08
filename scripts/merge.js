@@ -15,7 +15,6 @@
  */
 
 const fs = require('fs');
-const path = require('path');
 const { flatten, unflatten } = require('./diff.js');
 
 // --- Key sorting ---
@@ -154,6 +153,8 @@ function main() {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}
 
 module.exports = { sortKeys, applySourceKeyOrder, mergeTranslations };
