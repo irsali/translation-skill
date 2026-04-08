@@ -79,18 +79,80 @@ These are things the skill can do that the VS Code extension *couldn't easily*:
 | **Review mode** | Claude can review existing translations for quality, consistency, and accuracy. |
 | **Migration assistance** | Convert between translation formats (JSON → YAML, PO → JSON, etc.) |
 
-### 3.3 Skill Variants (Sub-Skills)
+### 3.3 The Paradigm Shift: Translating Blind vs. Translating With Eyes Open
 
-The plugin can offer multiple focused skills:
+The extension sends `"submit_button": "Submit"` to Copilot in isolation. The skill operates fundamentally differently:
 
+**Codebase-Aware Translation**
+Claude can read the component where `submit_button` is used — is it a destructive action? A form submit? A payment confirmation? That context changes the translation. A `"delete"` button in a settings page needs a different tone than a `"delete"` on a data wipe dialog.
+
+**Sibling-Key Coherence**
+When `cancel_button`, `save_button`, and `delete_button` are siblings, Claude translates them as a cohesive set — consistent tone, verb form, and length — rather than optimizing each in isolation.
+
+**Whole-File-at-Once Processing**
+The extension batches 20 keys per API call. Claude can process hundreds of keys in a single pass with full context, seeing the entire translation file as a coherent document rather than fragmented batches.
+
+**Multi-Language Simultaneous Awareness**
+The extension processes one language file at a time. Claude can diff and translate across all target languages in one orchestrated pass, spotting cross-language inconsistencies (e.g., a concept translated differently in `fr.json` module A vs module B).
+
+### 3.4 Entirely New Capability Categories
+
+These aren't enhancements to existing features — they're categories that **didn't exist** in the extension:
+
+#### String Extraction from Source Code
 ```
-/translation-sync          — Full sync: discover, diff, translate, write
-/translation-review        — Review existing translations for quality
-/translation-add-language  — Add a new target language to the project
-/translation-health        — Check translation coverage and consistency
-/translation-convert       — Convert between translation file formats
-/translation-extract       — Extract translatable strings from source code
+/translation-extract
 ```
+Claude reads your `.tsx`, `.vue`, `.svelte`, `.dart` files, finds hardcoded strings like `<button>Submit</button>` or `alert("Something went wrong")`, and proposes translation keys + adds them to the source file. The extension had zero awareness of source code.
+
+#### Dead Key Detection
+```
+/translation-health --deep
+```
+Claude greps the entire codebase for actual key usage. Keys in translation files that aren't referenced anywhere get flagged. This is a feature teams currently pay for in SaaS tools like Lokalise and Crowdin.
+
+#### Holistic Quality Review
+Not key-by-key checking — Claude reads *all* translations across *all* languages and identifies:
+- **Inconsistent terminology** — same concept translated differently across files/modules
+- **Tone mismatches** — formal in one section, casual in another
+- **Length problems** — German translations that will overflow UI containers
+- **Cultural issues** — idioms that don't translate, date/number format assumptions baked into strings
+- **Missing pluralization** — languages with complex plural rules (Russian: 3 forms, Arabic: 6) served with only singular/plural
+
+#### Translation Style Guide Generation
+```
+/translation-guide
+```
+Claude analyzes existing translations and *generates* a style guide from what's already there: "Your German translations use 'Sie' (formal). Spanish uses 'tú' (informal). Button labels use imperative mood. Error messages use passive voice." This becomes the `customInstructions` baseline that enforces consistency going forward — a living document derived from your actual patterns.
+
+#### Contextual Pluralization & ICU MessageFormat
+The extension treats `"items_count": "{count} items"` as a flat string. Claude understands pluralization rules per language and can generate proper ICU MessageFormat:
+```json
+{
+  "items_count": "{count, plural, one {# item} other {# items}}",
+  "days_remaining": "{count, plural, one {# day remaining} other {# days remaining}}"
+}
+```
+For Russian, Arabic, and other complex plural systems, it generates the correct number of forms automatically.
+
+#### PR-Ready Output & Changelog
+After syncing, Claude generates a translation diff summary suitable for a PR description — what was added, changed, removed, and reused — with example translations for reviewer context. No more opaque "updated translation files" commit messages.
+
+### 3.5 Skill Variants (Sub-Skills)
+
+The plugin offers a focused skill set, each doing one thing well:
+
+| Skill | Purpose | Extension Equivalent |
+|-------|---------|---------------------|
+| `/translation-sync` | Core sync: discover, diff, translate, write | ✅ Existed (core feature) |
+| `/translation-review` | Quality review across all languages | ❌ **New** |
+| `/translation-health` | Coverage + dead keys + deep codebase analysis | Partial (basic health only) |
+| `/translation-extract` | Find hardcoded strings in source, propose keys | ❌ **New** |
+| `/translation-convert` | Format migration (JSON ↔ YAML ↔ PO ↔ XLIFF ↔ ARB) | ❌ **New** |
+| `/translation-guide` | Generate & enforce a translation style guide | ❌ **New** |
+| `/translation-add-language` | Add a new target language interactively | ✅ Existed |
+
+The extension was a translation **tool**. The skill is a translation **partner** — one that understands your code, your conventions, and your intent.
 
 ---
 
@@ -158,6 +220,7 @@ Claude understands context, idioms, formality levels, technical terminology, and
 - **Translation review**: "Review my German translations for consistency" — Claude reads all files and provides feedback
 - **Glossary enforcement**: Define terminology once, Claude applies it everywhere
 - **Contextual instructions**: "Use formal 'Sie' for German, informal 'tú' for Spanish" — natural language config
+- **Conversational iteration**: "That German translation for 'submit_button' sounds too stiff, make it friendlier" — Claude adjusts in real-time with the conversation context
 
 ### 5.4 CI/CD Integration
 
@@ -167,11 +230,30 @@ Claude understands context, idioms, formality levels, technical terminology, and
   run: claude-code --skill translation-sync --non-interactive
 ```
 
-Skills can run in CI pipelines via Claude Code CLI, enabling automated translation on every PR that touches the source language file.
+Skills can run in CI pipelines via Claude Code CLI, enabling automated translation on every PR that touches the source language file. Combined with scheduled triggers, this enables fully automated translation workflows:
+
+```yaml
+# Nightly translation sync
+- cron: '0 2 * * *'
+  name: Nightly translation sync
+  run: claude-code --skill translation-sync --non-interactive
+```
 
 ### 5.5 Plugin Marketplace
 
 Anthropic's plugin marketplace provides a built-in distribution channel. Users discover and install with one click — no VS Code marketplace listing, no extension packaging, no vsix files.
+
+### 5.6 The Architectural Advantage
+
+The extension's architecture is: **deterministic pipeline → external API → deterministic merge**. The intelligence lives in the code *around* the translation, not *in* it.
+
+The skill inverts this: **the intelligence IS the translator AND the orchestrator**. Claude doesn't need a rigid pipeline of categorize → batch → call API → parse → validate → merge. Claude *understands* the task holistically. Helper scripts exist only for mechanical safety (writing valid JSON, preserving file encoding) — not for orchestration logic.
+
+This means:
+- **No batching complexity** — Claude processes entire files with full context
+- **No prompt engineering layer** — Claude doesn't need to be told how to translate; it needs to be told the *project's rules*
+- **No response parsing** — no fragile regex to extract translations from API responses
+- **Richer error recovery** — Claude can reason about *why* something failed and adapt, rather than blindly retrying
 
 ---
 
@@ -184,24 +266,30 @@ Anthropic's plugin marketplace provides a built-in distribution channel. Users d
 ```
 translation-skill/
 ├── .claude-plugin/
-│   └── plugin.json
+│   └── plugin.json              # Plugin metadata & registration
 ├── skills/
 │   ├── translation-sync/
-│   │   └── SKILL.md
+│   │   └── SKILL.md             # Core sync: discover, diff, translate, write
 │   ├── translation-review/
-│   │   └── SKILL.md
+│   │   └── SKILL.md             # Quality review across languages
 │   ├── translation-health/
-│   │   └── SKILL.md
+│   │   └── SKILL.md             # Coverage, dead keys, deep analysis
+│   ├── translation-extract/
+│   │   └── SKILL.md             # Find hardcoded strings, propose keys
+│   ├── translation-convert/
+│   │   └── SKILL.md             # Format migration between i18n formats
+│   ├── translation-guide/
+│   │   └── SKILL.md             # Generate/enforce translation style guide
 │   └── translation-add-language/
-│       └── SKILL.md
-├── scripts/                    # Helper scripts for deterministic operations
-│   ├── diff.js                 # JSON diff engine
-│   ├── validate.js             # Placeholder validation
-│   └── merge.js                # Safe JSON merge with key ordering
+│       └── SKILL.md             # Add a new target language interactively
+├── scripts/                     # Helper scripts for deterministic operations
+│   ├── diff.js                  # JSON diff engine (flatten, compare, report)
+│   ├── validate.js              # Placeholder validation & mismatch detection
+│   └── merge.js                 # Safe JSON merge with key ordering
 ├── templates/
-│   └── config.example.json     # Example project configuration
-├── VISION.md                   # This document
-├── README.md                   # User-facing documentation
+│   └── config.example.json      # Example project configuration
+├── VISION.md                    # This document
+├── README.md                    # User-facing documentation
 └── LICENSE
 ```
 
@@ -290,7 +378,8 @@ If no config exists, the skill scans the project and proposes a configuration �
 3. **Universal** — works in any editor, CI/CD, or terminal
 4. **Context-aware** — reads your code to understand how translations are used
 5. **Conversational** — configure via natural language, not config files
-6. **Open source** — community-driven, extensible
+6. **Full lifecycle** — extract → translate → sync → review → maintain (competitors only do one piece)
+7. **Open source** — community-driven, extensible
 
 ---
 
@@ -321,16 +410,28 @@ If no config exists, the skill scans the project and proposes a configuration �
 
 ---
 
-## 11. Next Steps
+## 11. What We're NOT Building
 
-1. **Scaffold the plugin structure** — `.claude-plugin/plugin.json`, skill directories
-2. **Write the core skill** — `/translation-sync` SKILL.md with full instructions
-3. **Build helper scripts** — JSON diff, placeholder validation, safe merge
-4. **Test locally** — Run against real translation projects
-5. **Iterate on reliability** — Tighten instructions, add edge case handling
-6. **Write documentation** — README, examples, configuration guide
-7. **Submit to marketplace** — Package and publish
+Clarity on scope is as important as ambition. The skill is **not**:
+
+- **A translation management system (TMS)** — No web UI, no role-based access, no approval workflows. Tools like Lokalise and Crowdin own that space.
+- **A machine translation API** — We don't expose a general-purpose translation endpoint. The skill operates on *files in your project*.
+- **A replacement for human translators** — For production apps with nuanced brand voice, the skill is a first pass and maintenance tool. Professional review may still be needed.
+- **A real-time service** — No file watchers, no WebSocket connections. It runs on-demand or on schedule.
 
 ---
 
-*This document is the north star for the translation-skill project. It will evolve as we learn from building and user feedback.*
+## 12. Next Steps
+
+1. **Scaffold the plugin structure** — `.claude-plugin/plugin.json`, skill directories
+2. **Write the core skill** — `/translation-sync` SKILL.md with full instructions
+3. **Write supporting skills** — `/translation-health`, `/translation-extract`, `/translation-review`
+4. **Build helper scripts** — JSON diff, placeholder validation, safe merge
+5. **Test locally** — Run against real translation projects
+6. **Iterate on reliability** — Tighten instructions, add edge case handling
+7. **Write documentation** — README, examples, configuration guide
+8. **Submit to marketplace** — Package and publish
+
+---
+
+*This document is the north star for the translation-skill project. It will evolve as we build, test, and learn from user feedback.*
