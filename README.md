@@ -1,12 +1,12 @@
 # Translation Skill
 
-AI-powered translation file synchronization for Claude Code.
+AI-powered translation file synchronization for any AI coding assistant.
 
-Edit your source language once — Claude handles the rest.
+Edit your source language once — your AI handles the rest.
 
 ## What It Does
 
-A Claude Code plugin that keeps your project's translation files in sync. It takes your source language file (e.g., `en.json`) as the single source of truth, detects what changed, and translates only the delta into all target languages — preserving existing translations, variables, and structure.
+A set of markdown-based skill files that keep your project's translation files in sync. Works with **Claude Code**, **Cursor**, **GitHub Copilot**, **Windsurf**, **Cline**, **Aider**, and any AI coding tool that reads instruction files. It takes your source language file (e.g., `en.json`) as the single source of truth, detects what changed, and translates only the delta into all target languages — preserving existing translations, variables, and structure.
 
 ## Skills
 
@@ -22,27 +22,58 @@ A Claude Code plugin that keeps your project's translation files in sync. It tak
 
 ## Quick Start
 
-### 1. Install the Plugin
-
-Add this plugin to your Claude Code installation:
+### Claude Code
 
 ```bash
-# From the plugin marketplace (when available)
-claude plugin add translation-skill
+# Install as a plugin
+claude plugin add https://github.com/irsali/translation-skill
 
-# Or from git
-claude plugin add https://github.com/noble-wave/translation-skill
-```
-
-### 2. Run Your First Sync
-
-```
+# Then use any skill
 /translation-sync
 ```
 
 If no configuration exists, the skill auto-discovers your translation files and proposes a setup. On subsequent runs, it only translates what changed.
 
-### 3. Customize (Optional)
+### Cursor
+
+Add the skill files as project rules:
+
+1. Copy the `skills/` folder into your project (or clone this repo alongside it)
+2. In Cursor settings, add the SKILL.md files as custom instructions:
+   - Go to **Settings → Rules for AI** and add:
+     ```
+     @file:skills/translation-sync/SKILL.md
+     ```
+3. Use in chat: _"Sync my translation files"_ or _"Run translation-sync"_
+
+### GitHub Copilot
+
+Use the skill files as custom instructions:
+
+1. Copy `skills/translation-sync/SKILL.md` into `.github/copilot-instructions.md` or reference it in your workspace
+2. In Copilot Chat, reference the file:
+   ```
+   @workspace /explain #file:skills/translation-sync/SKILL.md
+   Sync my translation files following these instructions
+   ```
+
+### Windsurf / Cline / Aider
+
+These tools support custom instruction files. Point them to the SKILL.md files:
+
+- **Windsurf**: Add to `.windsurfrules` or reference in settings
+- **Cline**: Add to `.clinerules` or custom instructions in settings
+- **Aider**: Use `--read skills/translation-sync/SKILL.md` flag or add to `.aider.conf.yml`
+
+### Manual Setup (Any AI Tool)
+
+The skill files are plain markdown with structured instructions. For any AI coding tool:
+
+1. Copy the relevant `SKILL.md` file content
+2. Paste it into your tool's system prompt, custom instructions, or rules configuration
+3. Ask the AI to follow the instructions on your project
+
+### Configure (Optional)
 
 Create a `.translation-sync.json` in your project root:
 
@@ -124,10 +155,24 @@ Find dead keys (in translation files but not used in code), detect hardcoded str
 6. **Validate** — Checks all variables are preserved in translations
 7. **Write** — Outputs updated files with proper formatting and key ordering
 
+## Compatibility
+
+| Tool | Setup | Slash Commands |
+|------|-------|----------------|
+| **Claude Code** | `claude plugin add` | Yes (`/translation-sync`) |
+| **Cursor** | Rules for AI | No — use natural language |
+| **GitHub Copilot** | Custom instructions | No — use natural language |
+| **Windsurf** | `.windsurfrules` | No — use natural language |
+| **Cline** | `.clinerules` | No — use natural language |
+| **Aider** | `--read` flag | No — use natural language |
+
+Slash commands (`/translation-sync`, `/translation-health`, etc.) are a Claude Code feature. With other tools, use the same instructions via natural language — the SKILL.md files work identically as prompts.
+
 ## Requirements
 
-- [Claude Code](https://claude.ai/code) CLI, Desktop, or IDE extension
+- Any AI coding assistant that supports custom instructions or system prompts
 - A project with translation files (or source code to extract from)
+- Git (optional — enables smart change detection)
 
 ## License
 
