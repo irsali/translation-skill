@@ -1,0 +1,34 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "settings": "Paramètres",
+    "profile": "Profil"
+  },
+  "auth": {
+    "login_title": "Connexion",
+    "login_button": "Se connecter",
+    "login_email_placeholder": "Entrez votre e-mail",
+    "login_password_placeholder": "Mot de passe",
+    "forgot_password": "TODO: translate"
+  },
+  "dashboard": {
+    "welcome": "Bon retour, {name} !",
+    "items_count": "{count} éléments dans votre espace de travail"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue. Veuillez réessayer.",
+    "not_found": "La page que vous recherchez n'existe pas.",
+    "file_too_large": "Le fichier dépasse la taille maximale.",
+    "network": "Connexion impossible. Vérifiez votre connexion internet."
+  },
+  "actions": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "confirm_delete": "Êtes-vous sûr de vouloir supprimer \"{itemName}\" ?",
+    "export": "Exporter"
+  },
+  "old_feature": {
+    "deprecated_label": "This should be removed"
+  }
+}

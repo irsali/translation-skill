@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home",
+    "settings": "Settings",
+    "profile": "Profile",
+    "logout": "Log Out"
+  },
+  "auth": {
+    "login_title": "Sign In",
+    "login_button": "Sign In",
+    "login_email_placeholder": "Enter your email",
+    "login_password_placeholder": "Password",
+    "forgot_password": "Forgot your password?",
+    "signup_prompt": "Don't have an account? <a href=\"{signupUrl}\">Sign up</a>"
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {name}!",
+    "items_count": "{count} items in your workspace",
+    "last_active": "Last active: {date}",
+    "storage_usage": "Using {used} of {total} storage"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "not_found": "The page you're looking for doesn't exist.",
+    "file_too_large": "File exceeds the maximum size of {maxSize}.",
+    "network": "Unable to connect. Check your internet connection.",
+    "permission": "You don't have permission to perform this action."
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm_delete": "Are you sure you want to delete \"{itemName}\"?",
+    "export": "Export",
+    "import": "Import"
+  },
+  "notifications": {
+    "save_success": "Changes saved successfully.",
+    "delete_success": "\"{itemName}\" has been deleted.",
+    "upload_progress": "Uploading {fileName}... {percent}% complete"
+  }
+}

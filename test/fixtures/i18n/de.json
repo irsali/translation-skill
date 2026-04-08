@@ -1,0 +1,32 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "settings": "Einstellungen",
+    "profile": "Profil",
+    "logout": "Abmelden"
+  },
+  "auth": {
+    "login_title": "Anmelden",
+    "login_button": "Anmelden",
+    "login_email_placeholder": "E-Mail eingeben",
+    "login_password_placeholder": "Passwort"
+  },
+  "dashboard": {
+    "welcome": "Willkommen zurück, {name}!",
+    "items_count": "{count} Elemente in Ihrem Arbeitsbereich",
+    "last_active": "Zuletzt aktiv: {date}"
+  },
+  "errors": {
+    "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "not_found": "Die gesuchte Seite existiert nicht.",
+    "file_too_large": "Die Datei überschreitet die maximale Größe von {maxSize}.",
+    "network": "Verbindung nicht möglich. Überprüfen Sie Ihre Internetverbindung.",
+    "permission": "Sie haben keine Berechtigung, diese Aktion auszuführen."
+  },
+  "actions": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "confirm_delete": "Möchten Sie \"{itemName}\" wirklich löschen?"
+  }
+}
