@@ -29,7 +29,7 @@ The existing VS Code extension (`mcp-translation-sync` v2.0.3) is a production-g
 | **Smart sync** | Only translates new/changed keys — reuses existing valid translations |
 | **Batch translation** | 20 keys per request, 95% fewer API calls |
 | **Git-aware** | 6 strategies for detecting source changes (HEAD vs working, staged, commit range, etc.) |
-| **Placeholder preservation** | Detects `{name}`, `{{count}}`, `%s`, `${var}`, `[key]` patterns |
+| **Variable preservation** | Detects `{name}`, `{{count}}`, `%s`, `${var}`, `%{name}`, `[key]` and more — see Section 3.2 for full syntax table |
 | **Auto-discovery** | Finds all translation files in a project automatically |
 | **Multi-module** | Supports separate translation modules (admin, common, blog) |
 | **Key sorting** | Alphabetical ordering (asc/desc, case-sensitive/insensitive) |
@@ -57,14 +57,53 @@ The existing VS Code extension (`mcp-translation-sync` v2.0.3) is a production-g
 | **Discover translation files** | ✅ High | Glob patterns + directory scanning via Claude's tools |
 | **Diff source vs targets** | ✅ High | Read files, Claude performs JSON comparison natively |
 | **Translate missing/changed keys** | ✅ High | Claude itself IS the translation engine — no external API needed |
-| **Preserve placeholders** | ✅ High | Instruction-based: tell Claude the rules, it follows them |
+| **Variable & placeholder preservation** | ✅ High | Framework-aware: detects and preserves all interpolation syntaxes (see 3.2) |
 | **Key sorting** | ✅ High | Claude can sort JSON keys when writing output |
 | **Dry-run mode** | ✅ High | Read and report without calling Write |
 | **Git change detection** | ✅ High | Bash tool runs git commands directly |
 | **Health checks** | ✅ High | Compare file sets, report gaps |
 | **Multi-format support** | ✅ High | JSON, YAML, PO, XLIFF — Claude understands all natively |
 
-### 3.2 Enhanced Capabilities (New in Skill)
+### 3.2 Variable & Interpolation Support
+
+Translation strings are full of dynamic variables. The extension preserved them — the skill **understands** them.
+
+#### Supported Variable Syntaxes
+
+| Syntax | Framework / Convention | Example |
+|--------|----------------------|---------|
+| `{name}` | i18next, React Intl, Java MessageFormat | `"Hello, {name}"` |
+| `{{name}}` | Angular, Handlebars, Mustache, Laravel | `"Welcome, {{user}}"` |
+| `${name}` | ES6 template literals, Kotlin | `"Total: ${amount}"` |
+| `%s`, `%d`, `%f` | C-style printf, Android, Python `%` | `"Found %d items in %s"` |
+| `%(name)s` | Python named format | `"Hello, %(user)s"` |
+| `%{name}` | Ruby i18n, Elixir Gettext | `"Logged in as %{username}"` |
+| `$t(key)` | i18next nested references | `"See $t(common.help)"` |
+| `@:key` | Vue i18n linked messages | `"Submit: @:buttons.ok"` |
+| `[name]` | Custom bracket notation | `"File [filename] saved"` |
+| `{0}`, `{1}` | Positional (Java, C#, Flutter) | `"{0} of {1} complete"` |
+| `%1$s`, `%2$d` | Android positional printf | `"%1$s has %2$d items"` |
+
+#### What the Skill Does Beyond Preservation
+
+The extension treated variables as opaque tokens — detect pattern, ensure it appears in output. The skill goes further:
+
+**Variable-Aware Reordering**
+Languages have different word order. `"Hello {name}, you have {count} messages"` in English may need to become `"{count} Nachrichten für {name}"` in German. The skill understands that variable positions can and should change to produce natural translations while keeping every variable present.
+
+**Positional Variable Safety**
+For printf-style positional variables (`%1$s`, `%2$d`), the skill ensures positional indices remain mapped to the same semantic argument even when word order changes — preventing the classic bug where `%1` and `%2` get swapped in translation.
+
+**Nested Reference Awareness**
+For frameworks like i18next (`$t(key.path)`) and Vue i18n (`@:key.path`), the skill checks that referenced keys actually exist in the target language file — catching broken cross-references before they hit production.
+
+**HTML & Markup in Variables**
+Translation strings often contain inline markup: `"Click <a href='{url}'>here</a> to continue"`. The skill preserves HTML tags and attributes while translating the surrounding text, and warns when markup structure would break in the target language.
+
+**Plural-Variable Interaction**
+When variables interact with pluralization — `"{count} {count, plural, one {item} other {items}} in {folder}"` — the skill handles both the ICU MessageFormat expansion AND variable preservation as a unified concern, not two separate passes.
+
+### 3.3 Enhanced Capabilities (New in Skill)
 
 These are things the skill can do that the VS Code extension *couldn't easily*:
 
@@ -284,7 +323,7 @@ translation-skill/
 │       └── SKILL.md             # Add a new target language interactively
 ├── scripts/                     # Helper scripts for deterministic operations
 │   ├── diff.js                  # JSON diff engine (flatten, compare, report)
-│   ├── validate.js              # Placeholder validation & mismatch detection
+│   ├── validate.js              # Variable/placeholder validation & mismatch detection
 │   └── merge.js                 # Safe JSON merge with key ordering
 ├── templates/
 │   └── config.example.json      # Example project configuration
@@ -328,14 +367,18 @@ translation-skill/
 
 ### Project-Level Config (`.translation-sync.json`)
 
-```json
+```jsonc
 {
   "sourceLanguage": "en",
   "sourceFile": "src/i18n/en.json",
   "targetLanguages": ["fr", "de", "es", "ja", "zh"],
   "format": "json",
   "keySort": "asc",
-  "placeholderPatterns": ["{}", "{{}}", "${}"],
+
+  // "auto" detects framework from package.json (i18next, vue-i18n, react-intl, etc.)
+  // Or specify explicitly: ["{}", "{{}}", "${}", "%s", "%{}", "$t()", "@:"]
+  "variablePatterns": "auto",
+
   "customInstructions": "Use formal tone for all languages. Technical terms should not be translated.",
   "modules": {
     "common": "src/i18n/{lang}/common.json",
@@ -426,7 +469,7 @@ Clarity on scope is as important as ambition. The skill is **not**:
 1. **Scaffold the plugin structure** — `.claude-plugin/plugin.json`, skill directories
 2. **Write the core skill** — `/translation-sync` SKILL.md with full instructions
 3. **Write supporting skills** — `/translation-health`, `/translation-extract`, `/translation-review`
-4. **Build helper scripts** — JSON diff, placeholder validation, safe merge
+4. **Build helper scripts** — JSON diff, variable/placeholder validation, safe merge
 5. **Test locally** — Run against real translation projects
 6. **Iterate on reliability** — Tighten instructions, add edge case handling
 7. **Write documentation** — README, examples, configuration guide
