@@ -201,7 +201,8 @@ Dry Run Summary for {language}:
 1. Write each target file using the Write tool.
 2. Preserve the original file's formatting (indentation, trailing newlines).
 3. For JSON: use 2-space indentation and a trailing newline.
-4. For YAML: preserve the existing style.
+4. For JSON: locale-specific quotation marks (`„"`, `«»`, `「」`) MUST be Unicode-escaped (`\u201E`, `\u201C`, `\u00AB`, `\u00BB`, etc.) to avoid breaking JSON syntax. The `"` character inside a JSON string value must ALWAYS be escaped as `\"`.
+5. For YAML: preserve the existing style.
 
 ---
 

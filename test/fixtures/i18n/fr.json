@@ -2,33 +2,41 @@
   "nav": {
     "home": "Accueil",
     "settings": "Paramètres",
-    "profile": "Profil"
+    "profile": "Profil",
+    "logout": "Déconnexion"
   },
   "auth": {
     "login_title": "Connexion",
     "login_button": "Se connecter",
     "login_email_placeholder": "Entrez votre e-mail",
     "login_password_placeholder": "Mot de passe",
-    "forgot_password": "TODO: translate"
+    "forgot_password": "Mot de passe oublié ?",
+    "signup_prompt": "Vous n'avez pas de compte ? <a href=\"{signupUrl}\">Inscrivez-vous</a>"
   },
   "dashboard": {
     "welcome": "Bon retour, {name} !",
-    "items_count": "{count} éléments dans votre espace de travail"
+    "items_count": "{count} éléments dans votre espace de travail",
+    "last_active": "Dernière activité : {date}",
+    "storage_usage": "{used} sur {total} d'espace utilisé"
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
     "not_found": "La page que vous recherchez n'existe pas.",
-    "file_too_large": "Le fichier dépasse la taille maximale.",
-    "network": "Connexion impossible. Vérifiez votre connexion internet."
+    "file_too_large": "Le fichier dépasse la taille maximale de {maxSize}.",
+    "network": "Connexion impossible. Vérifiez votre connexion internet.",
+    "permission": "Vous n'avez pas la permission d'effectuer cette action."
   },
   "actions": {
     "save": "Enregistrer",
     "cancel": "Annuler",
     "delete": "Supprimer",
     "confirm_delete": "Êtes-vous sûr de vouloir supprimer \"{itemName}\" ?",
-    "export": "Exporter"
+    "export": "Exporter",
+    "import": "Importer"
   },
-  "old_feature": {
-    "deprecated_label": "This should be removed"
+  "notifications": {
+    "save_success": "Modifications enregistrées avec succès.",
+    "delete_success": "« {itemName} » a été supprimé.",
+    "upload_progress": "Téléversement de {fileName}... {percent} % terminé"
   }
 }

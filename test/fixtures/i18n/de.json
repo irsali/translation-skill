@@ -9,12 +9,15 @@
     "login_title": "Anmelden",
     "login_button": "Anmelden",
     "login_email_placeholder": "E-Mail eingeben",
-    "login_password_placeholder": "Passwort"
+    "login_password_placeholder": "Passwort",
+    "forgot_password": "Passwort vergessen?",
+    "signup_prompt": "Noch kein Konto? <a href=\"{signupUrl}\">Registrieren</a>"
   },
   "dashboard": {
     "welcome": "Willkommen zurück, {name}!",
     "items_count": "{count} Elemente in Ihrem Arbeitsbereich",
-    "last_active": "Zuletzt aktiv: {date}"
+    "last_active": "Zuletzt aktiv: {date}",
+    "storage_usage": "{used} von {total} Speicher belegt"
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -27,6 +30,13 @@
     "save": "Speichern",
     "cancel": "Abbrechen",
     "delete": "Löschen",
-    "confirm_delete": "Möchten Sie \"{itemName}\" wirklich löschen?"
+    "confirm_delete": "Möchten Sie \"{itemName}\" wirklich löschen?",
+    "export": "Exportieren",
+    "import": "Importieren"
+  },
+  "notifications": {
+    "save_success": "Änderungen erfolgreich gespeichert.",
+    "delete_success": "\u201E{itemName}\u201C wurde gelöscht.",
+    "upload_progress": "{fileName} wird hochgeladen... {percent} % abgeschlossen"
   }
 }
