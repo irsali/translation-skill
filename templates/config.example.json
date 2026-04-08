@@ -1,0 +1,10 @@
+{
+  "sourceLanguage": "en",
+  "sourceFile": "src/i18n/en.json",
+  "targetLanguages": ["fr", "de", "es"],
+  "format": "json",
+  "keySort": "asc",
+  "variablePatterns": "auto",
+  "customInstructions": "",
+  "modules": {}
+}
