@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "translation-skill",
+  "description": "AI-powered translation file synchronization for any AI coding assistant",
+  "owner": {
+    "name": "Noble Wave"
+  },
+  "plugins": [
+    {
+      "name": "translation-skill",
+      "description": "AI-powered translation file synchronization. Discover, sync, review, and maintain i18n translation files across your project.",
+      "author": {
+        "name": "Noble Wave"
+      },
+      "category": "development",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/irsali/translation-skill.git"
+      },
+      "homepage": "https://github.com/irsali/translation-skill"
+    }
+  ]
+}

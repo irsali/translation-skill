@@ -3,7 +3,9 @@
   "displayName": "Translation Sync",
   "version": "0.1.0",
   "description": "AI-powered translation file synchronization. Discover, sync, review, and maintain i18n translation files across your project — powered by Claude.",
-  "author": "Noble Wave",
+  "author": {
+    "name": "Noble Wave"
+  },
   "license": "AGPL-3.0",
   "homepage": "https://github.com/noble-wave/translation-skill",
   "keywords": [
