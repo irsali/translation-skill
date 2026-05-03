@@ -6,5 +6,7 @@
   "keySort": "asc",
   "variablePatterns": "auto",
   "customInstructions": "",
+  "dynamicKeyPrefixes": ["Api.", "Badge.", "Errors."],
+  "dynamicKeyPatterns": ["toast.{success,error,warning}.*"],
   "modules": {}
 }

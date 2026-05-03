@@ -23,13 +23,13 @@ If no arguments are given, sync all configured languages with default settings.
 
 ---
 
-## Step 1: Load Configuration
+## Step 1: Load and Validate Configuration
 
 Check for a project config file in this order:
 1. `.translation-sync.json` in the project root
 2. `.claude/translation-sync.json`
 
-If a config file exists, read it. It has this shape:
+If a config file exists, read and parse it. The expected shape:
 ```json
 {
   "sourceLanguage": "en",
@@ -39,18 +39,69 @@ If a config file exists, read it. It has this shape:
   "keySort": "asc",
   "variablePatterns": "auto",
   "customInstructions": "",
+  "dynamicKeyPrefixes": [],
+  "dynamicKeyPatterns": [],
   "modules": {}
 }
 ```
 
-If NO config file exists, proceed to **Step 2: Discovery**.
-If a config file exists, skip to **Step 3: Read Source**.
+### 1a: Validate the Config
+
+Silent ignore of typos or wrong types is the single biggest cause of "the skill ignored my setting" confusion. Always validate and surface findings at the START of the run, before any translation work.
+
+**Known top-level fields** (the canonical schema):
+
+| Field | Type | Required | Allowed values / notes |
+|-------|------|----------|------------------------|
+| `sourceLanguage` | string | yes | BCP-47 code (e.g., `en`, `pt-BR`) |
+| `sourceFile` | string | no (auto-detected) | Path relative to project root |
+| `targetLanguages` | string[] | no | BCP-47 codes; if omitted/empty, runs language discovery |
+| `format` | string | no | One of: `json`, `yaml`, `yml`, `po`, `xliff`, `arb`, `properties`, `auto` |
+| `keySort` | string | no | One of: `asc`, `desc`, `none` |
+| `variablePatterns` | string \| string[] | no | `"auto"` or explicit pattern list |
+| `customInstructions` | string | no | Free-form translation guidance |
+| `dynamicKeyPrefixes` | string[] | no | See `/translation-health` for usage |
+| `dynamicKeyPatterns` | string[] | no | Glob patterns; see `/translation-health` |
+| `modules` | object | no | Module-based file patterns with `{lang}` placeholder |
+
+**Validation behavior:**
+- **Unknown top-level field**: log a WARNING. If a known field is within edit-distance 2, suggest it (e.g., `Unknown field "languageNames" — did you mean "targetLanguages"? Ignoring.`). Continue.
+- **Wrong type on a required field** (`sourceLanguage`): ABORT with a clear error and the expected type.
+- **Wrong type on an optional field**: log a WARNING and fall back to the default.
+- **Invalid enum value** (`format`, `keySort`): log a WARNING, fall back to `auto` / `asc`.
+- **Empty / null config file**: log a WARNING and treat as "no config" (proceed to discovery).
+
+Print a single grouped block at the start of the run, e.g.:
+```
+Config validation:
+  ⚠ Unknown field "languageNames" — did you mean "targetLanguages"? Ignoring.
+  ⚠ format: "yml" is valid; "yamll" is not. Falling back to auto-detection.
+  ✓ All other fields valid.
+```
+
+If there were no findings, do not print this block.
+
+### 1b: Decide What to Do Next
+
+Based on what was found, pick one path:
+
+| State | Action |
+|-------|--------|
+| No config file | Proceed to **Step 2: Discovery** (full discovery — files, source, targets). Offer to create a config at the end. |
+| Config exists, `targetLanguages` is a non-empty array | Skip to **Step 3**. Use the configured languages exactly; do NOT discover new ones. |
+| Config exists, `targetLanguages` is missing or `[]` | Run **Step 2** in *language-only mode*: discover existing target files, but use all OTHER fields from config as-is. Log a notice: `No targetLanguages in config — discovered: fr, de, es. Pin these in config to lock the set.` |
 
 ---
 
-## Step 2: Discovery (First Run)
+## Step 2: Discovery
 
-If no config exists, discover translation files:
+This step runs in two modes:
+- **Full discovery** (no config exists): find source file, target files, propose creating a config.
+- **Language-only discovery** (config exists but `targetLanguages` is missing/empty): use the configured `sourceFile` and `format`; only auto-detect which target language files exist.
+
+In language-only mode, run substep 1 below ONLY (glob) but scope it to the directory of the configured `sourceFile`. Skip substeps 2–4 — you already have the source from config and don't need to propose a new config. Use the discovered target files as the language list, then continue to **Step 3**.
+
+For full discovery, run all four substeps:
 
 1. Use Glob to find files matching common i18n patterns:
    - `**/{locale,locales,i18n,lang,languages,translations}/**/*.{json,yaml,yml}`
@@ -198,11 +249,25 @@ Dry Run Summary for {language}:
 ```
 
 ### Write Mode
-1. Write each target file using the Write tool.
-2. Preserve the original file's formatting (indentation, trailing newlines).
-3. For JSON: use 2-space indentation and a trailing newline.
-4. For JSON: locale-specific quotation marks (`„"`, `«»`, `「」`) MUST be Unicode-escaped (`\u201E`, `\u201C`, `\u00AB`, `\u00BB`, etc.) to avoid breaking JSON syntax. The `"` character inside a JSON string value must ALWAYS be escaped as `\"`.
-5. For YAML: preserve the existing style.
+
+Writes MUST be atomic per-file: a crash, parse failure, or interruption must NEVER leave a translation file half-written or corrupted. Use a write-then-rename pattern so the original file is replaced as a single filesystem operation.
+
+For each target file:
+
+1. **Write to a temporary path**: use the Write tool to write the new content to `<target>.tmp` (e.g., `src/i18n/fr.json.tmp`). If a stale `<target>.tmp` exists from a prior crashed run, overwriting it is fine.
+2. **Validate the temp file**: re-read `<target>.tmp` and parse it according to its format (JSON.parse, YAML parse, etc.). If parsing fails, abort this file: delete the `.tmp`, report the error, and move on to the next target — DO NOT touch the original file.
+3. **Atomic rename**: replace the original with the temp file as a single operation:
+   - **POSIX (Bash)**: `mv -f <target>.tmp <target>`
+   - **Windows (PowerShell)**: `Move-Item -Force <target>.tmp <target>`
+   Pick the command based on the current platform. The rename is atomic on the same filesystem on all major OSes.
+4. **On any failure between steps 1–3**: ensure `<target>.tmp` is removed and the original is untouched. Never leave orphaned `.tmp` files behind on success.
+
+Formatting rules (apply when generating the content in step 1):
+
+1. Preserve the original file's formatting (indentation, trailing newlines).
+2. For JSON: use 2-space indentation and a trailing newline.
+3. For JSON: locale-specific quotation marks (`„"`, `«»`, `「」`) MUST be Unicode-escaped (`\u201E`, `\u201C`, `\u00AB`, `\u00BB`, etc.) to avoid breaking JSON syntax. The `"` character inside a JSON string value must ALWAYS be escaped as `\"`.
+4. For YAML: preserve the existing style.
 
 ---
 
@@ -235,6 +300,7 @@ If there were any issues (variable mismatches, parse errors, etc.), list them at
 - **Variable mismatch after translation**: Mark the key with `TODO:` prefix, report it, and continue with other keys.
 - **Git not available**: Skip change detection, process all keys.
 - **Empty source file**: Report and stop — do not overwrite targets with empty content.
+- **Write/validation failure on a target**: per Step 6 atomic-write rules, the original file is never touched until the `.tmp` parses cleanly. Delete the orphaned `.tmp`, report which file failed, and continue with the remaining targets. The user can safely re-run `/translation-sync` — already-completed files won't be re-translated thanks to the reuse classification in Step 5b.
 
 ---
 

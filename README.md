@@ -132,18 +132,26 @@ Claude reads your codebase to understand how translation keys are used — produ
 ### Deep Health Checks
 Find dead keys (in translation files but not used in code), detect hardcoded strings that should be extracted, and validate variable integrity across all languages.
 
+Dead-key detection is **dynamic-key aware**: it auto-infers key families built at runtime (e.g. `` t(`Api.${endpoint}`) ``, `t('Errors.' + code)`) by scanning source code, and respects the `dynamicKeyPrefixes` / `dynamicKeyPatterns` config fields. Suppressed families are listed in the report so you can audit them. This eliminates the false-positive flood that naive grep-based detection produces in mature codebases.
+
 ## Configuration Reference
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `sourceLanguage` | string | `"en"` | BCP-47 code of the source language |
 | `sourceFile` | string | auto-detected | Path to the source translation file |
-| `targetLanguages` | string[] | auto-detected | BCP-47 codes of target languages |
+| `targetLanguages` | string[] | discovered | BCP-47 codes. **Omitted or `[]`**: the skill discovers existing target files in your `sourceFile` directory on each run and prints a notice (recommended: pin them once stable). **Set to a non-empty array**: the skill uses exactly those languages and does NOT discover new ones. |
 | `format` | string | auto-detected | File format: `json`, `yaml`, `po`, `xliff`, `arb`, `properties` |
 | `keySort` | string | `"asc"` | Key sorting: `"asc"`, `"desc"`, or `"none"` |
 | `variablePatterns` | string/string[] | `"auto"` | Variable detection: `"auto"` or explicit patterns |
 | `customInstructions` | string | `""` | Project-specific translation guidelines |
+| `dynamicKeyPrefixes` | string[] | `[]` | Key prefixes built dynamically at runtime (exempt from dead-key checks). E.g. `["Api.", "Badge."]` |
+| `dynamicKeyPatterns` | string[] | `[]` | Glob patterns for dynamically-built keys. E.g. `["Errors.*", "toast.{success,error}.*"]` |
 | `modules` | object | `{}` | Module-based file patterns with `{lang}` placeholder |
+
+### Config Validation
+
+Every run validates the config and prints findings upfront — silent ignore is never the behavior. Unknown fields are logged as warnings with a "did you mean…" suggestion (e.g. typing `languageNames` warns and suggests `targetLanguages`). Wrong types and invalid enum values (e.g. `format: "yamll"`) are reported and fall back to defaults rather than aborting the run, except for required fields like `sourceLanguage` where a type error aborts with a clear message.
 
 ## How It Works
 

@@ -68,10 +68,48 @@ Check for:
 If the user requested deep analysis, scan the source code:
 
 ### 5a: Dead Key Detection
-1. Collect all translation keys from the source language file.
-2. Use Grep to search for each key (or key patterns) across source code files (`.ts`, `.tsx`, `.js`, `.jsx`, `.vue`, `.svelte`, `.dart`, `.kt`, `.swift`, `.py`, `.rb`, `.php`, `.html`).
-3. Keys that appear in translation files but are NOT referenced anywhere in source code are **dead keys**.
-4. Be smart about matching: keys may be referenced as `t('key')`, `$t('key')`, `i18n.t('key')`, `translate('key')`, `messages.key`, `I18n.t(:key)`, etc.
+
+Production codebases routinely build translation keys at runtime — error-code maps, badge labels, API status mappers — so naive grep-based dead-key detection produces high false-positive rates. Detection MUST be aware of dynamic key families before classifying anything as dead.
+
+**Step 1 — Load exemption rules from config:**
+- `dynamicKeyPrefixes: string[]` — any source key starting with one of these prefixes is exempt (e.g., `"Api."` exempts `Api.users`, `Api.orders.create`, etc.).
+- `dynamicKeyPatterns: string[]` — glob patterns for advanced cases (e.g., `"Errors.*.message"`, `"toast.{success,error,warning}.*"`).
+
+Both fields are optional. The two lists are unioned.
+
+**Step 2 — Auto-infer dynamic families from source code:**
+
+Grep the codebase for template-literal and concatenation patterns that build keys at runtime. Look for these forms:
+
+| Pattern | Example | Inferred prefix |
+|---------|---------|----------------|
+| Template literal in t-call | `` t(`Api.${endpoint}`) `` | `Api.` |
+| Template literal, nested | `` $t(`Badge.${status}.label`) `` | `Badge.` |
+| String concatenation | `t('Errors.' + code)` | `Errors.` |
+| Computed object access | `messages['toast.' + kind]` | `toast.` |
+
+Recommended grep patterns (run across `.ts`, `.tsx`, `.js`, `.jsx`, `.vue`, `.svelte`, `.dart`, `.kt`, `.swift`, `.py`, `.rb`, `.php`):
+- ``[\$\.]?t\(\s*[`'"]([\w.]+\.)\$?\{`` — template literal with literal prefix segment
+- `[\$\.]?t\(\s*['"]([\w.]+\.)['"\s]*\+` — concatenation with literal prefix
+- `formatMessage\(\s*\{\s*id:\s*[`'"]([\w.]+\.)\$?\{` — React Intl pattern
+
+For each match, extract the static prefix segment (everything up to and including the last `.` before the dynamic part) and record the file:line where it was found. These become **inferred prefixes**.
+
+If a pattern has no static prefix (e.g., `` t(`${kind}.error`) ``), do NOT infer anything — note it as "ambiguous dynamic key construction" and surface it in the report so the user can decide.
+
+**Step 3 — Collect and classify:**
+
+For each key in the source translation file, classify in this order:
+1. **Exempt (config)** — matches `dynamicKeyPrefixes` or `dynamicKeyPatterns`.
+2. **Exempt (inferred)** — matches an auto-inferred prefix.
+3. **Live** — found via Grep in source code, matched as `t('key')`, `$t('key')`, `i18n.t('key')`, `translate('key')`, `messages.key`, `I18n.t(:key)`, `useTranslation()...t('key')`, `formatMessage({id: 'key'})`, etc.
+4. **Dead** — none of the above.
+
+Only keys in category 4 are reported as dead.
+
+**Step 4 — Report transparency:**
+
+Always report which keys were suppressed and why, so users can audit and tighten rules. Group exempt keys by family rather than listing them individually.
 
 ### 5b: Hardcoded String Detection
 1. Search source code for user-visible strings that should probably be translated:
@@ -118,6 +156,15 @@ TODO Markers (incomplete translations):
 If `--deep` was used, append:
 
 ```
+Dynamic Key Families (excluded from dead-key check):
+  Api.*     — 47 keys (configured via dynamicKeyPrefixes)
+  Badge.*   — 23 keys (configured via dynamicKeyPrefixes)
+  Errors.*  — 32 keys (inferred from src/utils/errors.ts:42)
+  toast.*   — 18 keys (inferred from src/components/Toast.tsx:15)
+
+Ambiguous dynamic constructions (review manually):
+  src/i18n/helpers.ts:88 → t(`${kind}.error`)  — no static prefix to infer
+
 Dead Keys (in translation files but not referenced in code):
   ⚠ "onboarding_step_3" — not found in any source file
   ⚠ "beta_banner" — not found in any source file
