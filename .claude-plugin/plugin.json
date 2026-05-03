@@ -1,7 +1,7 @@
 {
   "name": "translation-skill",
   "displayName": "Translation Sync",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI-powered translation file synchronization. Discover, sync, review, and maintain i18n translation files across your project — powered by Claude.",
   "author": {
     "name": "Noble Wave"
