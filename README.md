@@ -4,6 +4,8 @@ AI-powered translation file synchronization for any AI coding assistant.
 
 Edit your source language once — your AI handles the rest.
 
+![translation-sync demo](assets/demo.gif)
+
 ## What It Does
 
 A set of markdown-based skill files that keep your project's translation files in sync. Works with **Claude Code**, **Cursor**, **GitHub Copilot**, **Windsurf**, **Cline**, **Aider**, and any AI coding tool that reads instruction files. It takes your source language file (e.g., `en.json`) as the single source of truth, detects what changed, and translates only the delta into all target languages — preserving existing translations, variables, and structure.
