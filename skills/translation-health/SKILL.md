@@ -52,6 +52,22 @@ For every translated key, extract variables from both source and target:
 
 ---
 
+## Step 3b: Glossary Compliance (if a glossary is configured)
+
+If `glossary` is set in config (inline or external file), check every translated key for glossary integrity:
+
+- For each key, find glossary terms (`doNotTranslate` and `terms`) that appear in the SOURCE string.
+- For `doNotTranslate` terms: verify the same term appears verbatim in the target. Skip occurrences inside `{variables}` or `<tags>`.
+- For `terms[lang]` mappings: verify the mapped translation appears in the target (case-insensitive, word-boundary).
+- Aggregate by language. Report:
+  - Total glossary checks per language
+  - Number of violations
+  - Sample of up to 5 violating keys with expected vs actual
+
+A glossary violation is classified as a **warning** in the severity table — high enough to fix, not a blocker.
+
+---
+
 ## Step 4: Structural Consistency
 
 Check for:
@@ -151,6 +167,13 @@ Extra Keys (not in source — consider removing):
 TODO Markers (incomplete translations):
   fr.json → "payment_error", "subscription_renewal"
   ja.json → "nav_settings", "nav_profile", "nav_billing", "nav_help", "nav_logout"
+
+Glossary Compliance (if configured):
+  fr.json — 47 checks, 2 violations:
+    ⚠ "inbox_header"  → expected "Boîte de réception", got "Boîte de courrier"
+    ⚠ "premium_cta"   → expected "Premium" verbatim (do-not-translate), got "Premium plan" → "Plan Premium"
+  de.json — 47 checks, 0 violations
+  es.json — 47 checks, 0 violations
 ```
 
 If `--deep` was used, append:

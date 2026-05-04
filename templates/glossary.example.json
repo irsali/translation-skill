@@ -1,0 +1,35 @@
+{
+  "doNotTranslate": [
+    "Premium",
+    "Pro",
+    "Acme Corp",
+    "GitHub",
+    "API",
+    "OAuth"
+  ],
+  "terms": {
+    "Inbox": {
+      "es": "Bandeja de entrada",
+      "fr": "Boîte de réception",
+      "de": "Posteingang",
+      "ja": "受信トレイ"
+    },
+    "Settings": {
+      "es": "Configuración",
+      "fr": "Paramètres",
+      "de": "Einstellungen",
+      "ja": "設定"
+    },
+    "Sign in": {
+      "es": "Iniciar sesión",
+      "fr": "Se connecter",
+      "de": "Anmelden",
+      "ja": "サインイン"
+    },
+    "Workspace": {
+      "es": "Espacio de trabajo",
+      "fr": "Espace de travail",
+      "de": "Arbeitsbereich"
+    }
+  }
+}

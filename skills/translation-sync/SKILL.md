@@ -39,6 +39,11 @@ If a config file exists, read and parse it. The expected shape:
   "keySort": "asc",
   "variablePatterns": "auto",
   "customInstructions": "",
+  "tone": "formal",
+  "glossary": {
+    "doNotTranslate": [],
+    "terms": {}
+  },
   "dynamicKeyPrefixes": [],
   "dynamicKeyPatterns": [],
   "modules": {}
@@ -60,6 +65,8 @@ Silent ignore of typos or wrong types is the single biggest cause of "the skill 
 | `keySort` | string | no | One of: `asc`, `desc`, `none` |
 | `variablePatterns` | string \| string[] | no | `"auto"` or explicit pattern list |
 | `customInstructions` | string | no | Free-form translation guidance |
+| `tone` | string \| object | no | `"formal"` / `"informal"` / `"neutral"`, or per-language object: `{ "default": "formal", "es": "informal" }` |
+| `glossary` | object \| string | no | Inline glossary object (`doNotTranslate`, `terms`) OR a path string to an external glossary file |
 | `dynamicKeyPrefixes` | string[] | no | See `/translation-health` for usage |
 | `dynamicKeyPatterns` | string[] | no | Glob patterns; see `/translation-health` |
 | `modules` | object | no | Module-based file patterns with `{lang}` placeholder |
@@ -90,6 +97,28 @@ Based on what was found, pick one path:
 | No config file | Proceed to **Step 2: Discovery** (full discovery — files, source, targets). Offer to create a config at the end. |
 | Config exists, `targetLanguages` is a non-empty array | Skip to **Step 3**. Use the configured languages exactly; do NOT discover new ones. |
 | Config exists, `targetLanguages` is missing or `[]` | Run **Step 2** in *language-only mode*: discover existing target files, but use all OTHER fields from config as-is. Log a notice: `No targetLanguages in config — discovered: fr, de, es. Pin these in config to lock the set.` |
+
+### 1c: Resolve the Glossary
+
+The `glossary` field accepts two forms — auto-detect which is in use:
+
+- **Inline object** with `doNotTranslate` and/or `terms` keys → use as-is.
+- **String** → treat as a path relative to the project root (or absolute), read the JSON, and use its content as the glossary. If the file is missing or unparseable, log a WARNING and continue with an empty glossary.
+
+The resolved glossary shape:
+```json
+{
+  "doNotTranslate": ["Premium", "Pro", "Acme Corp"],
+  "terms": {
+    "Inbox":    { "es": "Bandeja de entrada", "fr": "Boîte de réception", "de": "Posteingang" },
+    "Settings": { "es": "Configuración",       "fr": "Paramètres",         "de": "Einstellungen" }
+  }
+}
+```
+
+Both sub-fields are optional. If neither is set, glossary enforcement is a no-op.
+
+If the user has not set a glossary at all, skip this step silently — glossary is optional.
 
 ---
 
@@ -161,6 +190,53 @@ If not a git repo or user specified `--all`, treat ALL keys as candidates for tr
 
 For each target language file (filtered by user's language selection if provided):
 
+### Pre: Tone Calibration
+
+Before classifying keys, calibrate the tone for this language. The goal is to catch the case where the config says one register but the existing translations use another — silently picking either side is the wrong default.
+
+**Resolve the configured tone:**
+- If `tone` is a string → applies to all languages.
+- If `tone` is an object → use `tone[lang]` if set, else `tone.default`, else unset.
+- If unset → no expectation from config; skip directly to **5a**.
+
+**Sample existing translations** (only if a target file already has translations):
+- Pick up to 10 existing translated strings that are likely to expose register: those containing second-person pronouns (you, vous, du, usted, tu, あなた), imperatives, or polite request patterns.
+- If fewer than 5 candidate strings exist, **skip the check** — too little signal to act on.
+
+**Classify the sample** for the language's relevant register dimension:
+- German: Sie vs du
+- French: vous vs tu
+- Spanish: usted vs tú/vos
+- Italian: Lei vs tu
+- Portuguese: você vs tu
+- Russian: вы vs ты
+- Japanese: keigo (敬語/丁寧語) vs casual
+- Korean: tiered honorifics
+- Languages without a T-V or honorific distinction (English, Mandarin, etc.): skip — no actionable conflict.
+
+**Decide the outcome:**
+- If ≥ 7/10 sample strings agree AND the agreed register matches `tone` → all good, log a one-liner and proceed.
+- If ≥ 7/10 agree AND the agreed register conflicts with `tone` → **conflict detected**.
+- If the sample is mixed (no clear majority) → log an advisory ("`{lang}.json` appears mixed-tone") and use the config tone.
+
+**Conflict resolution:**
+
+In interactive runs, ask the user:
+```
+Tone conflict for es.json:
+  Config says: formal
+  Existing translations sampled (10): 8/10 use informal "tú"
+
+How should I resolve?
+  1) Match existing (informal) — recommended for consistency
+  2) Match config (formal) — re-translate inconsistent existing keys, mark with [REVIEW]
+  3) Abort — let me edit config first
+```
+
+In non-interactive runs (CI, scripted), use the `--tone-conflict` flag (`existing` | `config` | `abort`). Default: **`existing`** — preserve existing tone, log loudly. Never silently reconcile.
+
+The chosen tone for this language is then used as the binding tone in **5d** for any translations produced.
+
 ### 5a: Read Target File
 Read the existing translation file and flatten its keys.
 
@@ -203,15 +279,19 @@ Translate all keys classified as **Translate** for this language. Follow these r
 3. Variables may change position to produce natural word order in the target language — this is correct and expected.
 4. For positional variables (`%1$s`, `{0}`), ensure they map to the same semantic argument.
 5. Preserve HTML tags and their attributes exactly. Only translate the text content between tags.
-6. Match the formality level: formal if instructed, informal if instructed, match existing translations if neither specified.
+6. Match the formality level: use the tone resolved in the **Pre: Tone Calibration** step. If no config tone exists and calibration was skipped, match the register of existing translations in the same file.
 7. Keep translations concise — UI strings should be similar length to the source when possible.
 8. Do NOT translate:
    - Brand names, product names, proper nouns (unless locale convention requires it)
    - Technical identifiers, code references
    - URLs, email addresses
    - Emoji (keep as-is)
-9. For pluralization with ICU MessageFormat, generate language-appropriate plural forms.
-10. If `customInstructions` exist in the config, follow them as highest-priority guidance.
+   - Any term in `glossary.doNotTranslate` — these MUST appear verbatim in the translation.
+9. **Glossary terms are binding.** For each glossary term in `glossary.terms` that appears in the source string, the translation MUST use the exact mapped value for the target language. Example: `glossary.terms.Inbox.es = "Bandeja de entrada"` → every Spanish translation that contains "Inbox" in the source must contain "Bandeja de entrada" in the target. If a term has no mapping for the current target language, fall back to normal translation (or treat as do-not-translate if it also appears in `doNotTranslate`).
+10. For pluralization with ICU MessageFormat, generate language-appropriate plural forms.
+11. If `customInstructions` exist in the config, follow them as highest-priority guidance — but glossary mappings and do-not-translate terms still take precedence over free-form instructions.
+
+**Prompting guidance**: when sending a batch of strings to translate, include only the glossary entries whose source term actually appears in the batch. Don't bloat the prompt with the full glossary.
 
 ### 5e: Assemble Output
 
@@ -221,13 +301,28 @@ Translate all keys classified as **Translate** for this language. Follow these r
 4. Apply key sorting if configured (default: match source key order).
 5. Unflatten dot-notation keys back to nested structure.
 
-### 5f: Variable Validation
+### 5f: Output Validation
 
-Before writing, validate every translated string:
+Before writing, validate every translated string in two passes:
+
+**Variable integrity:**
 - Extract variables from the translation.
 - Compare against the source string's variable set.
 - If ANY variable is missing or altered: flag it, and prepend `TODO:` to that translation.
-- Report mismatches to the user.
+
+**Glossary integrity** (only if a glossary is configured):
+- For each glossary term that appears in the source string, verify the corresponding requirement in the target:
+  - **`doNotTranslate`** terms: the target must contain the same term verbatim (case-sensitive, word-boundary matched). If the term sits inside a `{variable}` or `<tag>` in the source, skip enforcement for that occurrence.
+  - **`terms[targetLang]`** mappings: the target must contain the mapped translation (case-insensitive presence check, word-boundary matched).
+- On miss: prepend `[GLOSSARY: expected "<expected>" for "<source-term>"]` to the translation, leaving the rest of the translated text intact so the user can review and edit.
+- A single key may have BOTH a variable mismatch and a glossary mismatch — surface both prefixes in that order: `TODO: [GLOSSARY: ...] <translation>`.
+
+Report all mismatches in a single grouped block at the end of the per-language pass:
+```
+fr.json validation:
+  ⚠ welcome_user — missing {name} variable (added TODO marker)
+  ⚠ inbox_header — glossary expected "Boîte de réception" for "Inbox" (added [GLOSSARY] marker)
+```
 
 ---
 
@@ -298,6 +393,8 @@ If there were any issues (variable mismatches, parse errors, etc.), list them at
 - **File not found**: Report which file is missing and suggest running `/translation-sync` with discovery.
 - **Invalid JSON/YAML**: Report the parse error with file path and line number. Do not partially process broken files.
 - **Variable mismatch after translation**: Mark the key with `TODO:` prefix, report it, and continue with other keys.
+- **Glossary mismatch after translation**: Mark the key with `[GLOSSARY: expected "X" for "Y"]` prefix, report it, and continue. Do NOT block the run — the user reviews the marker and edits.
+- **Tone conflict in a target file**: never resolve silently. In interactive runs, prompt; in non-interactive runs, follow `--tone-conflict` flag (default `existing`) and log the decision prominently.
 - **Git not available**: Skip change detection, process all keys.
 - **Empty source file**: Report and stop — do not overwrite targets with empty content.
 - **Write/validation failure on a target**: per Step 6 atomic-write rules, the original file is never touched until the `.tmp` parses cleanly. Delete the orphaned `.tmp`, report which file failed, and continue with the remaining targets. The user can safely re-run `/translation-sync` — already-completed files won't be re-translated thanks to the reuse classification in Step 5b.

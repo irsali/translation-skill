@@ -96,13 +96,26 @@ Generated from existing translations on {date}.
 
 ### Step 3: Integrate with Config
 
-If a `.translation-sync.json` exists, suggest adding the guide as `customInstructions`:
+If a `.translation-sync.json` exists, propose structured config additions based on what was detected — these are stronger than free-form `customInstructions` because the sync skill enforces them programmatically:
 
+**Tone**: from the detected formality level per language, propose a `tone` field. Use a simple string if all languages agree, or a per-language object if they differ:
+```json
+"tone": { "default": "formal", "es": "informal" }
+```
+
+**Glossary**: from the dominant translation per repeated source term (the same data that built the Terminology Glossary table), propose a `glossary.terms` object. Include only terms that appeared 3+ times with a clear dominant rendering — single-occurrence terms aren't reliable. Also propose `doNotTranslate` for any term consistently left untranslated across all sampled languages.
+
+Surface the proposal:
 ```
 Generated .translation-guide.md with rules for 4 languages.
 
-Would you like me to add a reference to this guide in your .translation-sync.json?
-This will make /translation-sync follow these conventions automatically.
+I also detected:
+  • Tone: formal (de, fr); informal (es)
+  • 12 glossary candidates (terms that appear 3+ times with consistent translation)
+  • 4 do-not-translate candidates (terms left untranslated across all languages)
+
+Would you like me to add these to your .translation-sync.json as structured `tone` and `glossary` fields?
+This makes /translation-sync enforce them automatically — stronger than customInstructions guidance.
 ```
 
 ---

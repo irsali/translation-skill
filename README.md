@@ -145,6 +145,8 @@ Dead-key detection is **dynamic-key aware**: it auto-infers key families built a
 | `keySort` | string | `"asc"` | Key sorting: `"asc"`, `"desc"`, or `"none"` |
 | `variablePatterns` | string/string[] | `"auto"` | Variable detection: `"auto"` or explicit patterns |
 | `customInstructions` | string | `""` | Project-specific translation guidelines |
+| `tone` | string \| object | unset | `"formal"` / `"informal"` / `"neutral"`, or per-language: `{ "default": "formal", "es": "informal" }` |
+| `glossary` | object \| string | unset | Inline `{ doNotTranslate, terms }` object, OR a path string to an external glossary file |
 | `dynamicKeyPrefixes` | string[] | `[]` | Key prefixes built dynamically at runtime (exempt from dead-key checks). E.g. `["Api.", "Badge."]` |
 | `dynamicKeyPatterns` | string[] | `[]` | Glob patterns for dynamically-built keys. E.g. `["Errors.*", "toast.{success,error}.*"]` |
 | `modules` | object | `{}` | Module-based file patterns with `{lang}` placeholder |
@@ -152,6 +154,28 @@ Dead-key detection is **dynamic-key aware**: it auto-infers key families built a
 ### Config Validation
 
 Every run validates the config and prints findings upfront — silent ignore is never the behavior. Unknown fields are logged as warnings with a "did you mean…" suggestion (e.g. typing `languageNames` warns and suggests `targetLanguages`). Wrong types and invalid enum values (e.g. `format: "yamll"`) are reported and fall back to defaults rather than aborting the run, except for required fields like `sourceLanguage` where a type error aborts with a clear message.
+
+### Tone Conflict Detection
+
+At the start of each per-language pass, the skill samples up to 10 existing translations that contain register-revealing patterns (second-person pronouns, imperatives) and classifies them on the language's relevant formality dimension (Sie/du, vous/tu, usted/tú, keigo/casual, etc.). If the configured `tone` disagrees with the existing tone with high confidence, the run pauses and asks how to resolve — preserving existing tone, re-translating to match config, or aborting. Default in non-interactive runs is **preserve existing**, with a `--tone-conflict` flag to override. Languages without a T-V or honorific distinction are skipped.
+
+### Glossary Support
+
+Define product-specific terms once and have every sync enforce them:
+
+```json
+"glossary": {
+  "doNotTranslate": ["Premium", "Pro", "Acme Corp"],
+  "terms": {
+    "Inbox":    { "es": "Bandeja de entrada", "fr": "Boîte de réception", "de": "Posteingang" },
+    "Settings": { "es": "Configuración",       "fr": "Paramètres",         "de": "Einstellungen" }
+  }
+}
+```
+
+`doNotTranslate` keeps a term verbatim in every language. `terms` binds a source term to a specific translation per target language. Both rules take precedence over `customInstructions`. After translation, every key is validated: if a glossary term in the source isn't honored in the target, the translation is prefixed with `[GLOSSARY: expected "X" for "Y"]` so you can review and edit. Terms inside `{variables}` or `<HTML>` tags are skipped to avoid false positives.
+
+For larger glossaries, point `glossary` at an external file: `"glossary": "./.translation-sync/glossary.json"` (same shape). See [`templates/glossary.example.json`](templates/glossary.example.json) for a starter file. Run `/translation-guide --generate` to mine a glossary from your existing translations.
 
 ## How It Works
 

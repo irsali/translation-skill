@@ -6,6 +6,13 @@
   "keySort": "asc",
   "variablePatterns": "auto",
   "customInstructions": "",
+  "tone": { "default": "formal", "es": "informal" },
+  "glossary": {
+    "doNotTranslate": ["Premium", "Pro"],
+    "terms": {
+      "Inbox": { "es": "Bandeja de entrada", "fr": "Boîte de réception" }
+    }
+  },
   "dynamicKeyPrefixes": ["Api.", "Badge.", "Errors."],
   "dynamicKeyPatterns": ["toast.{success,error,warning}.*"],
   "modules": {}

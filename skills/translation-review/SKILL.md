@@ -60,6 +60,11 @@ Evaluate each target language across these dimensions:
 - Are all variables preserved correctly?
 - Are variables positioned naturally in the target language's word order?
 
+### Glossary Compliance (if config defines a glossary)
+- Are `glossary.doNotTranslate` terms left verbatim in every translation that mentions them?
+- Are `glossary.terms[lang]` mappings used consistently? Flag any translation that uses a different rendering for a mapped term.
+- A glossary violation is a stronger signal than a generic terminology inconsistency, because the user has explicitly committed to that mapping in config.
+
 ---
 
 ## Step 3: Review Process
